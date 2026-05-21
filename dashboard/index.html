@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ruddler Dashboard</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: #0d1117;
+      color: #e6edf3;
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 24px;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 32px;
+    }
+
+    header h1 { font-size: 2rem; font-weight: 700; color: #58a6ff; }
+    header p  { color: #8b949e; margin-top: 4px; }
+
+    .card {
+      background: #161b22;
+      border: 1px solid #30363d;
+      border-radius: 12px;
+      padding: 24px;
+      width: 100%;
+      max-width: 700px;
+      margin-bottom: 16px;
+    }
+
+    .card h2 {
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: #8b949e;
+      margin-bottom: 16px;
+    }
+
+    #connectBtn {
+      display: block;
+      width: 100%;
+      padding: 12px;
+      background: #238636;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    #connectBtn:hover              { background: #2ea043; }
+    #connectBtn.connected          { background: #da3633; }
+    #connectBtn.connected:hover    { background: #f85149; }
+
+    .status {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 12px;
+      font-size: 0.875rem;
+      color: #8b949e;
+    }
+
+    .dot { width: 8px; height: 8px; border-radius: 50%; background: #30363d; }
+    .dot.on { background: #3fb950; }
+
+    /* rudder */
+    .rudder-wrap {
+      position: relative;
+      height: 60px;
+      display: flex;
+      align-items: center;
+    }
+
+    .track {
+      width: 100%;
+      height: 20px;
+      background: #0d1117;
+      border-radius: 10px;
+      border: 1px solid #30363d;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .fill-l {
+      position: absolute; right: 50%; top: 0;
+      height: 100%; background: #58a6ff;
+      border-radius: 10px 0 0 10px; width: 0%;
+    }
+
+    .fill-r {
+      position: absolute; left: 50%; top: 0;
+      height: 100%; background: #58a6ff;
+      border-radius: 0 10px 10px 0; width: 0%;
+    }
+
+    .center-line {
+      position: absolute; left: 50%; top: 0;
+      width: 2px; height: 100%; background: #8b949e;
+      transform: translateX(-50%);
+    }
+
+    .thumb {
+      position: absolute;
+      width: 20px; height: 36px;
+      background: #58a6ff;
+      border-radius: 6px;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      box-shadow: 0 0 10px rgba(88,166,255,0.5);
+    }
+
+    .rudder-labels {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 8px;
+      font-size: 0.75rem;
+      color: #8b949e;
+    }
+
+    /* values */
+    .values {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+    }
+
+    .vbox {
+      background: #0d1117;
+      border: 1px solid #30363d;
+      border-radius: 8px;
+      padding: 12px;
+      text-align: center;
+    }
+
+    .vbox .lbl { font-size: 0.75rem; color: #8b949e; margin-bottom: 4px; }
+    .vbox .num {
+      font-size: 1.5rem; font-weight: 700;
+      color: #58a6ff;
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* graph */
+    #graph {
+      width: 100%;
+      height: 100px;
+      border-radius: 8px;
+      display: block;
+    }
+
+    /* config */
+    .cfg { margin-bottom: 20px; }
+    .cfg:last-child { margin-bottom: 0; }
+
+    .cfg-header {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 6px;
+      font-size: 0.875rem;
+    }
+
+    .cfg-header span:last-child { color: #58a6ff; font-weight: 600; }
+
+    input[type="range"] { width: 100%; accent-color: #58a6ff; }
+
+    .cfg-desc { font-size: 0.75rem; color: #8b949e; margin-top: 4px; }
+
+    /* buttons */
+    .btn-row { display: flex; gap: 12px; }
+
+    .btn {
+      flex: 1;
+      padding: 10px;
+      border: 1px solid #30363d;
+      border-radius: 8px;
+      background: #21262d;
+      color: #e6edf3;
+      font-size: 0.875rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    .btn:hover { background: #30363d; }
+    .btn.danger { border-color: #da3633; color: #da3633; }
+    .btn.danger:hover { background: rgba(218,54,51,0.1); }
+
+    .hint {
+      font-size: 0.75rem;
+      color: #8b949e;
+      margin-top: 8px;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>Ruddler</h1>
+  <p>Dashboard de configuração e monitoramento</p>
+</header>
+
+<!-- Conexão -->
+<div class="card">
+  <h2>Conexão</h2>
+  <button id="connectBtn" onclick="toggleConnect()">Conectar ao Arduino</button>
+  <div class="status">
+    <div class="dot" id="dot"></div>
+    <span id="statusText">Desconectado</span>
+  </div>
+  <p class="hint">Requer Chrome ou Edge</p>
+</div>
+
+<!-- Rudder -->
+<div class="card">
+  <h2>Posição do Rudder</h2>
+  <div class="rudder-wrap">
+    <div class="track">
+      <div class="fill-l" id="fillL"></div>
+      <div class="fill-r" id="fillR"></div>
+      <div class="center-line"></div>
+    </div>
+    <div class="thumb" id="thumb"></div>
+  </div>
+  <div class="rudder-labels">
+    <span>Esquerda</span>
+    <span>Centro</span>
+    <span>Direita</span>
+  </div>
+</div>
+
+<!-- Valores -->
+<div class="card">
+  <h2>Valores</h2>
+  <div class="values">
+    <div class="vbox">
+      <div class="lbl">Força (g)</div>
+      <div class="num" id="vForce">—</div>
+    </div>
+    <div class="vbox">
+      <div class="lbl">Eixo</div>
+      <div class="num" id="vAxis">—</div>
+    </div>
+    <div class="vbox">
+      <div class="lbl">%</div>
+      <div class="num" id="vPct">—</div>
+    </div>
+  </div>
+</div>
+
+<!-- Gráfico -->
+<div class="card">
+  <h2>Histórico</h2>
+  <canvas id="graph"></canvas>
+</div>
+
+<!-- Config -->
+<div class="card">
+  <h2>Configurações</h2>
+
+  <div class="cfg">
+    <div class="cfg-header">
+      <span>Força Máxima</span>
+      <span id="lblMax">15000 g</span>
+    </div>
+    <input type="range" id="sldMax" min="1000" max="50000" step="500" value="15000"
+           oninput="sendCfg('MAX', this.value, 'lblMax', v => v + ' g')">
+    <div class="cfg-desc">Força necessária para atingir 100% do eixo</div>
+  </div>
+
+  <div class="cfg">
+    <div class="cfg-header">
+      <span>Dead Zone</span>
+      <span id="lblDead">150 g</span>
+    </div>
+    <input type="range" id="sldDead" min="0" max="1000" step="10" value="150"
+           oninput="sendCfg('DEAD', this.value, 'lblDead', v => v + ' g')">
+    <div class="cfg-desc">Zona morta no centro para evitar drift</div>
+  </div>
+
+  <div class="cfg">
+    <div class="cfg-header">
+      <span>Suavização (EMA)</span>
+      <span id="lblAlpha">0.20</span>
+    </div>
+    <input type="range" id="sldAlpha" min="5" max="80" step="5" value="20"
+           oninput="sendCfg('ALPHA', this.value, 'lblAlpha', v => (v/100).toFixed(2))">
+    <div class="cfg-desc">Menor = mais suave &nbsp;|&nbsp; Maior = mais responsivo</div>
+  </div>
+</div>
+
+<!-- Ações -->
+<div class="card">
+  <h2>Ações</h2>
+  <div class="btn-row">
+    <button class="btn" onclick="sendCmd('TARE')">Zerar (Tare)</button>
+    <button class="btn danger" onclick="resetCfg()">Resetar Config</button>
+  </div>
+</div>
+
+<script>
+  let port, reader, writer;
+  let buf = '';
+
+  // graph
+  const graphData = new Array(200).fill(0);
+  const cvs = document.getElementById('graph');
+  const ctx = cvs.getContext('2d');
+
+  function resizeCvs() {
+    cvs.width  = cvs.offsetWidth  * devicePixelRatio;
+    cvs.height = cvs.offsetHeight * devicePixelRatio;
+  }
+  resizeCvs();
+  window.addEventListener('resize', resizeCvs);
+
+  function drawGraph() {
+    const w = cvs.offsetWidth, h = cvs.offsetHeight;
+    ctx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
+    ctx.clearRect(0, 0, w, h);
+
+    ctx.fillStyle = '#0d1117';
+    ctx.fillRect(0, 0, w, h);
+
+    ctx.strokeStyle = '#30363d';
+    ctx.lineWidth = 1;
+    ctx.setLineDash([4, 4]);
+    ctx.beginPath();
+    ctx.moveTo(0, h / 2);
+    ctx.lineTo(w, h / 2);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    ctx.strokeStyle = '#58a6ff';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    const step = w / (graphData.length - 1);
+    graphData.forEach((v, i) => {
+      const x = i * step;
+      const y = h / 2 - (v / 32767) * (h / 2 - 4);
+      i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+    });
+    ctx.stroke();
+
+    requestAnimationFrame(drawGraph);
+  }
+  drawGraph();
+
+  async function toggleConnect() {
+    port ? await disconnect() : await connect();
+  }
+
+  async function connect() {
+    try {
+      port = await navigator.serial.requestPort();
+      await port.open({ baudRate: 115200 });
+      writer = port.writable.getWriter();
+
+      document.getElementById('connectBtn').textContent = 'Desconectar';
+      document.getElementById('connectBtn').classList.add('connected');
+      document.getElementById('dot').classList.add('on');
+      document.getElementById('statusText').textContent = 'Conectado';
+
+      readLoop();
+    } catch (e) { console.error(e); }
+  }
+
+  async function disconnect() {
+    try {
+      if (reader) { await reader.cancel(); reader = null; }
+      if (writer) { writer.releaseLock(); writer = null; }
+      if (port)   { await port.close();   port   = null; }
+    } catch(e) {}
+
+    document.getElementById('connectBtn').textContent = 'Conectar ao Arduino';
+    document.getElementById('connectBtn').classList.remove('connected');
+    document.getElementById('dot').classList.remove('on');
+    document.getElementById('statusText').textContent = 'Desconectado';
+  }
+
+  async function readLoop() {
+    const dec = new TextDecoderStream();
+    port.readable.pipeTo(dec.writable);
+    reader = dec.readable.getReader();
+    try {
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        buf += value;
+        const lines = buf.split('\n');
+        buf = lines.pop();
+        lines.forEach(parseLine);
+      }
+    } catch (e) { console.error(e); }
+  }
+
+  function parseLine(line) {
+    const parts = {};
+    line.trim().split(',').forEach(p => {
+      const [k, v] = p.split(':');
+      if (k && v !== undefined) parts[k.trim()] = parseInt(v.trim());
+    });
+
+    if ('F' in parts && 'A' in parts) updateUI(parts.F, parts.A);
+
+    if ('MAX'   in parts) syncSlider('sldMax',   'lblMax',   parts.MAX,   v => v + ' g');
+    if ('DEAD'  in parts) syncSlider('sldDead',  'lblDead',  parts.DEAD,  v => v + ' g');
+    if ('ALPHA' in parts) syncSlider('sldAlpha', 'lblAlpha', parts.ALPHA, v => (v/100).toFixed(2));
+  }
+
+  function syncSlider(sliderId, labelId, value, fmt) {
+    document.getElementById(sliderId).value = value;
+    document.getElementById(labelId).textContent = fmt(value);
+  }
+
+  function updateUI(force, axis) {
+    const pct = Math.round((axis / 32767) * 100);
+    document.getElementById('vForce').textContent = force;
+    document.getElementById('vAxis').textContent  = axis;
+    document.getElementById('vPct').textContent   = pct + '%';
+
+    const pos = 50 + (axis / 32767) * 50;
+    document.getElementById('thumb').style.left = pos + '%';
+
+    if (axis < 0) {
+      document.getElementById('fillL').style.width = Math.abs(axis / 32767 * 50) + '%';
+      document.getElementById('fillR').style.width = '0%';
+    } else {
+      document.getElementById('fillR').style.width = (axis / 32767 * 50) + '%';
+      document.getElementById('fillL').style.width = '0%';
+    }
+
+    graphData.push(axis);
+    graphData.shift();
+  }
+
+  async function sendCmd(cmd) {
+    if (!writer) return;
+    await writer.write(new TextEncoder().encode(cmd + '\n'));
+  }
+
+  function sendCfg(key, value, labelId, fmt) {
+    document.getElementById(labelId).textContent = fmt(value);
+    sendCmd(key + ':' + value);
+  }
+
+  function resetCfg() {
+    sendCfg('MAX',   15000, 'lblMax',   v => v + ' g');
+    sendCfg('DEAD',  150,   'lblDead',  v => v + ' g');
+    sendCfg('ALPHA', 20,    'lblAlpha', v => (v/100).toFixed(2));
+    document.getElementById('sldMax').value   = 15000;
+    document.getElementById('sldDead').value  = 150;
+    document.getElementById('sldAlpha').value = 20;
+  }
+</script>
+
+</body>
+</html>
