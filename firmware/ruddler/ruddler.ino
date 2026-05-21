@@ -12,7 +12,7 @@
 
 struct Config {
   uint8_t magic;
-  int     forcaMax;
+  int     forceMax;
   int     deadzone;
   int     alphaX100;
 };
@@ -26,45 +26,45 @@ Joystick_ Joystick(JOYSTICK_DEFAULT_REPORT_ID,
   true, false, false, false, false, false,
   false, false, false, false, false);
 
-float         emaValor      = 0;
-unsigned long ultimoEnvio   = 0;
-unsigned long ultimoJoystick= 0;
-unsigned long ultimoHz      = 0;
-unsigned long contadorHz    = 0;
-unsigned long ultimoTare    = 0;
-int           hzAtual       = 0;
+float         emaValue      = 0;
+unsigned long lastJoystick  = 0;
+unsigned long lastSerial    = 0;
+unsigned long lastHz        = 0;
+unsigned long hzCounter     = 0;
+unsigned long lastTare      = 0;
+int           currentHz     = 0;
 
 String serialBuf = "";
 
-void salvarConfig() { EEPROM.put(0, config); }
+void saveConfig() { EEPROM.put(0, config); }
 
-void carregarConfig() {
+void loadConfig() {
   Config temp;
   EEPROM.get(0, temp);
-  if (temp.magic    == EEPROM_MAGIC  &&
-      temp.forcaMax  > 0             &&
-      temp.forcaMax  <= 50000        &&
-      temp.deadzone  >= 0            &&
-      temp.deadzone  < temp.forcaMax &&
-      temp.alphaX100 > 0             &&
+  if (temp.magic    == EEPROM_MAGIC   &&
+      temp.forceMax  > 0              &&
+      temp.forceMax  <= 50000         &&
+      temp.deadzone  >= 0             &&
+      temp.deadzone  < temp.forceMax  &&
+      temp.alphaX100 > 0              &&
       temp.alphaX100 <= 100) {
     config = temp;
   }
 }
 
-void processarComando(String cmd) {
+void processCommand(String cmd) {
   cmd.trim();
-  if      (cmd.startsWith("MAX:"))   { config.forcaMax  = cmd.substring(4).toInt();  salvarConfig(); }
-  else if (cmd.startsWith("DEAD:"))  { config.deadzone  = cmd.substring(5).toInt();  salvarConfig(); }
-  else if (cmd.startsWith("ALPHA:")) { config.alphaX100 = cmd.substring(6).toInt();  salvarConfig(); }
-  else if (cmd == "TARE")            { scale.tareNoDelay(); emaValor = 0; }
+  if      (cmd.startsWith("MAX:"))   { config.forceMax  = cmd.substring(4).toInt(); saveConfig(); }
+  else if (cmd.startsWith("DEAD:"))  { config.deadzone  = cmd.substring(5).toInt(); saveConfig(); }
+  else if (cmd.startsWith("ALPHA:")) { config.alphaX100 = cmd.substring(6).toInt(); saveConfig(); }
+  else if (cmd == "TARE")            { scale.tareNoDelay(); emaValue = 0; }
 }
 
-void lerSerial() {
+void readSerial() {
   while (Serial.available()) {
     char c = Serial.read();
     if (c == '\n') {
-      processarComando(serialBuf);
+      processCommand(serialBuf);
       serialBuf = "";
     } else {
       serialBuf += c;
@@ -76,7 +76,7 @@ void setup() {
   Serial.begin(115200);
   pinMode(BTN_TARE, INPUT_PULLUP);
 
-  carregarConfig();
+  loadConfig();
 
   Joystick.setXAxisRange(-32767, 32767);
   Joystick.begin();
@@ -87,52 +87,52 @@ void setup() {
 }
 
 void loop() {
-  lerSerial();
+  readSerial();
 
-  if (digitalRead(BTN_TARE) == LOW && millis() - ultimoTare > 500) {
+  if (digitalRead(BTN_TARE) == LOW && millis() - lastTare > 500) {
     scale.tareNoDelay();
-    emaValor   = 0;
-    ultimoTare = millis();
+    emaValue = 0;
+    lastTare = millis();
   }
 
   if (scale.update()) {
-    contadorHz++;
-
+    hzCounter++;
     float alpha   = config.alphaX100 / 100.0f;
-    float leitura = scale.getData();
-    emaValor = (alpha * leitura) + ((1.0f - alpha) * emaValor);
+    float reading = scale.getData();
+    emaValue = (alpha * reading) + ((1.0f - alpha) * emaValue);
   }
 
-  // envia joystick a 100Hz fixo, independente do HX711
-  unsigned long agora = millis();
-  if (agora - ultimoJoystick >= 10) {
-    int f = constrain((int)emaValor, -config.forcaMax, config.forcaMax);
+  unsigned long now = millis();
+
+  // send joystick at 100Hz
+  if (now - lastJoystick >= 10) {
+    int f = constrain((int)emaValue, -config.forceMax, config.forceMax);
     if (f > -config.deadzone && f < config.deadzone) f = 0;
 
-    int valor = map(f, -config.forcaMax, config.forcaMax, -32767, 32767);
-    Joystick.setXAxis(valor);
-    ultimoJoystick = agora;
+    int axis = map(f, -config.forceMax, config.forceMax, -32767, 32767);
+    Joystick.setXAxis(axis);
+    lastJoystick = now;
   }
 
-  // calcula Hz a cada 1 segundo
-  if (agora - ultimoHz >= 1000) {
-    hzAtual    = contadorHz;
-    contadorHz = 0;
-    ultimoHz   = agora;
+  // measure Hz every second
+  if (now - lastHz >= 1000) {
+    currentHz = hzCounter;
+    hzCounter = 0;
+    lastHz    = now;
   }
 
-  // envia dados para a dashboard a 20Hz — só se houver buffer disponível
-  if (agora - ultimoEnvio >= 50 && Serial && Serial.availableForWrite() > 60) {
-    int f = constrain((int)emaValor, -config.forcaMax, config.forcaMax);
+  // send data to dashboard at 20Hz, only if serial is connected and buffer has space
+  if (now - lastSerial >= 50 && Serial && Serial.availableForWrite() > 60) {
+    int f = constrain((int)emaValue, -config.forceMax, config.forceMax);
     if (f > -config.deadzone && f < config.deadzone) f = 0;
-    int valor = map(f, -config.forcaMax, config.forcaMax, -32767, 32767);
+    int axis = map(f, -config.forceMax, config.forceMax, -32767, 32767);
 
-    Serial.print("F:");      Serial.print((int)emaValor);
-    Serial.print(",A:");     Serial.print(valor);
-    Serial.print(",MAX:");   Serial.print(config.forcaMax);
+    Serial.print("F:");      Serial.print((int)emaValue);
+    Serial.print(",A:");     Serial.print(axis);
+    Serial.print(",MAX:");   Serial.print(config.forceMax);
     Serial.print(",DEAD:");  Serial.print(config.deadzone);
     Serial.print(",ALPHA:"); Serial.print(config.alphaX100);
-    Serial.print(",HZ:");    Serial.println(hzAtual);
-    ultimoEnvio = agora;
+    Serial.print(",HZ:");    Serial.println(currentHz);
+    lastSerial = now;
   }
 }
