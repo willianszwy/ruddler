@@ -1,4 +1,4 @@
-#include <HX711.h>
+#include <HX711_ADC.h>
 #include <Joystick.h>
 #include <EEPROM.h>
 
@@ -19,7 +19,7 @@ struct Config {
 
 Config config = { EEPROM_MAGIC, 15000, 150, 20 };
 
-HX711 scale;
+HX711_ADC scale(DT_PIN, SCK_PIN);
 
 Joystick_ Joystick(JOYSTICK_DEFAULT_REPORT_ID,
   JOYSTICK_TYPE_JOYSTICK, 0, 0,
@@ -30,7 +30,6 @@ float         emaValor    = 0;
 int           ultimoValor = 0;
 unsigned long ultimoEnvio = 0;
 unsigned long contadorHz  = 0;
-unsigned long tempoHz     = 0;
 unsigned long ultimoTare  = 0;
 
 String serialBuf = "";
@@ -56,10 +55,9 @@ void processarComando(String cmd) {
   if      (cmd.startsWith("MAX:"))   { config.forcaMax  = cmd.substring(4).toInt();  salvarConfig(); }
   else if (cmd.startsWith("DEAD:"))  { config.deadzone  = cmd.substring(5).toInt();  salvarConfig(); }
   else if (cmd.startsWith("ALPHA:")) { config.alphaX100 = cmd.substring(6).toInt();  salvarConfig(); }
-  else if (cmd == "TARE")            { scale.tare(); emaValor = 0; }
+  else if (cmd == "TARE")            { scale.tareNoDelay(); emaValor = 0; }
 }
 
-// leitura serial não-bloqueante
 void lerSerial() {
   while (Serial.available()) {
     char c = Serial.read();
@@ -81,27 +79,26 @@ void setup() {
   Joystick.setXAxisRange(-32767, 32767);
   Joystick.begin();
 
-  scale.begin(DT_PIN, SCK_PIN);
-  delay(500);
-  scale.tare();
-  scale.set_scale(54.8);
+  scale.begin();
+  scale.start(500);         // tare inicial (ms)
+  scale.setCalFactor(54.8);
 }
 
 void loop() {
   lerSerial();
 
-  // debounce do botão sem delay()
   if (digitalRead(BTN_TARE) == LOW && millis() - ultimoTare > 500) {
-    scale.tare();
+    scale.tareNoDelay();
     emaValor   = 0;
     ultimoTare = millis();
   }
 
-  if (scale.is_ready()) {
+  // update() não-bloqueante — retorna true quando nova amostra está pronta
+  if (scale.update()) {
     contadorHz++;
 
     float alpha   = config.alphaX100 / 100.0f;
-    float leitura = scale.get_units(1);
+    float leitura = scale.getData();
     emaValor = (alpha * leitura) + ((1.0f - alpha) * emaValor);
 
     int f = constrain((int)emaValor, -config.forcaMax, config.forcaMax);
