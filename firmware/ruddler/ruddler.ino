@@ -29,8 +29,10 @@ Joystick_ Joystick(JOYSTICK_DEFAULT_REPORT_ID,
 float         emaValor      = 0;
 unsigned long ultimoEnvio   = 0;
 unsigned long ultimoJoystick= 0;
+unsigned long ultimoHz      = 0;
 unsigned long contadorHz    = 0;
 unsigned long ultimoTare    = 0;
+int           hzAtual       = 0;
 
 String serialBuf = "";
 
@@ -112,14 +114,25 @@ void loop() {
     ultimoJoystick = agora;
   }
 
-  if (agora - ultimoEnvio >= 1000) {
+  // calcula Hz a cada 1 segundo
+  if (agora - ultimoHz >= 1000) {
+    hzAtual    = contadorHz;
+    contadorHz = 0;
+    ultimoHz   = agora;
+  }
+
+  // envia dados para a dashboard a 20Hz (50ms)
+  if (agora - ultimoEnvio >= 50) {
+    int f = constrain((int)emaValor, -config.forcaMax, config.forcaMax);
+    if (f > -config.deadzone && f < config.deadzone) f = 0;
+    int valor = map(f, -config.forcaMax, config.forcaMax, -32767, 32767);
+
     Serial.print("F:");      Serial.print((int)emaValor);
-    Serial.print(",A:");     Serial.print(map(constrain((int)emaValor, -config.forcaMax, config.forcaMax), -config.forcaMax, config.forcaMax, -32767, 32767));
+    Serial.print(",A:");     Serial.print(valor);
     Serial.print(",MAX:");   Serial.print(config.forcaMax);
     Serial.print(",DEAD:");  Serial.print(config.deadzone);
     Serial.print(",ALPHA:"); Serial.print(config.alphaX100);
-    Serial.print(",HZ:");    Serial.println(contadorHz);
-    contadorHz  = 0;
+    Serial.print(",HZ:");    Serial.println(hzAtual);
     ultimoEnvio = agora;
   }
 }
