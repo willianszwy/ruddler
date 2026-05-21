@@ -132,7 +132,7 @@
     /* values */
     .values {
       display: grid;
-      grid-template-columns: repeat(3, 1fr);
+      grid-template-columns: repeat(4, 1fr);
       gap: 12px;
     }
 
@@ -150,6 +150,9 @@
       color: #58a6ff;
       font-variant-numeric: tabular-nums;
     }
+
+    .vbox .num.hz-ok  { color: #3fb950; }
+    .vbox .num.hz-bad { color: #f85149; }
 
     /* graph */
     #graph {
@@ -254,6 +257,10 @@
     <div class="vbox">
       <div class="lbl">%</div>
       <div class="num" id="vPct">—</div>
+    </div>
+    <div class="vbox">
+      <div class="lbl">Taxa (Hz)</div>
+      <div class="num" id="vHz">—</div>
     </div>
   </div>
 </div>
@@ -411,7 +418,7 @@
       if (k && v !== undefined) parts[k.trim()] = parseInt(v.trim());
     });
 
-    if ('F' in parts && 'A' in parts) updateUI(parts.F, parts.A);
+    if ('F' in parts && 'A' in parts) updateUI(parts.F, parts.A, parts.HZ ?? null);
 
     if ('MAX'   in parts) syncSlider('sldMax',   'lblMax',   parts.MAX,   v => v + ' g');
     if ('DEAD'  in parts) syncSlider('sldDead',  'lblDead',  parts.DEAD,  v => v + ' g');
@@ -423,11 +430,17 @@
     document.getElementById(labelId).textContent = fmt(value);
   }
 
-  function updateUI(force, axis) {
+  function updateUI(force, axis, hz) {
     const pct = Math.round((axis / 32767) * 100);
     document.getElementById('vForce').textContent = force;
     document.getElementById('vAxis').textContent  = axis;
     document.getElementById('vPct').textContent   = pct + '%';
+
+    if (hz !== null) {
+      const el = document.getElementById('vHz');
+      el.textContent = hz + ' Hz';
+      el.className   = 'num ' + (hz >= 70 ? 'hz-ok' : 'hz-bad');
+    }
 
     const pos = 50 + (axis / 32767) * 50;
     document.getElementById('thumb').style.left = pos + '%';
