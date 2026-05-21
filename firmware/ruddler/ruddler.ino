@@ -121,8 +121,8 @@ void loop() {
     ultimoHz   = agora;
   }
 
-  // envia dados para a dashboard a 20Hz (50ms)
-  if (agora - ultimoEnvio >= 50) {
+  // envia dados para a dashboard a 20Hz — só se houver buffer disponível
+  if (agora - ultimoEnvio >= 50 && Serial && Serial.availableForWrite() > 60) {
     int f = constrain((int)emaValor, -config.forcaMax, config.forcaMax);
     if (f > -config.deadzone && f < config.deadzone) f = 0;
     int valor = map(f, -config.forcaMax, config.forcaMax, -32767, 32767);
