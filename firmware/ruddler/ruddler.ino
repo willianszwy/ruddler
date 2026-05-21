@@ -26,11 +26,14 @@ Joystick_ Joystick(JOYSTICK_DEFAULT_REPORT_ID,
   true, false, false, false, false, false,
   false, false, false, false, false);
 
-float emaValor    = 0;
-int   ultimoValor = 0;
+float         emaValor    = 0;
+int           ultimoValor = 0;
 unsigned long ultimoEnvio = 0;
 unsigned long contadorHz  = 0;
 unsigned long tempoHz     = 0;
+unsigned long ultimoTare  = 0;
+
+String serialBuf = "";
 
 void salvarConfig() { EEPROM.put(0, config); }
 
@@ -56,6 +59,19 @@ void processarComando(String cmd) {
   else if (cmd == "TARE")            { scale.tare(); emaValor = 0; }
 }
 
+// leitura serial não-bloqueante
+void lerSerial() {
+  while (Serial.available()) {
+    char c = Serial.read();
+    if (c == '\n') {
+      processarComando(serialBuf);
+      serialBuf = "";
+    } else {
+      serialBuf += c;
+    }
+  }
+}
+
 void setup() {
   Serial.begin(115200);
   pinMode(BTN_TARE, INPUT_PULLUP);
@@ -72,15 +88,13 @@ void setup() {
 }
 
 void loop() {
-  if (Serial.available()) {
-    String cmd = Serial.readStringUntil('\n');
-    processarComando(cmd);
-  }
+  lerSerial();
 
-  if (digitalRead(BTN_TARE) == LOW) {
+  // debounce do botão sem delay()
+  if (digitalRead(BTN_TARE) == LOW && millis() - ultimoTare > 500) {
     scale.tare();
-    emaValor = 0;
-    delay(500);
+    emaValor   = 0;
+    ultimoTare = millis();
   }
 
   if (scale.is_ready()) {
