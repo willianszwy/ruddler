@@ -6,6 +6,8 @@
 #define SCK_PIN  5
 #define BTN_TARE 10
 
+// HX711 RATE pin connected directly to VCC (80Hz mode)
+
 #define EEPROM_MAGIC 0xAB
 
 struct Config {
@@ -27,10 +29,10 @@ Joystick_ Joystick(JOYSTICK_DEFAULT_REPORT_ID,
 float emaValor    = 0;
 int   ultimoValor = 0;
 unsigned long ultimoEnvio = 0;
+unsigned long contadorHz  = 0;
+unsigned long tempoHz     = 0;
 
-void salvarConfig() {
-  EEPROM.put(0, config);
-}
+void salvarConfig() { EEPROM.put(0, config); }
 
 void carregarConfig() {
   Config temp;
@@ -48,19 +50,10 @@ void carregarConfig() {
 
 void processarComando(String cmd) {
   cmd.trim();
-  if (cmd.startsWith("MAX:")) {
-    config.forcaMax = cmd.substring(4).toInt();
-    salvarConfig();
-  } else if (cmd.startsWith("DEAD:")) {
-    config.deadzone = cmd.substring(5).toInt();
-    salvarConfig();
-  } else if (cmd.startsWith("ALPHA:")) {
-    config.alphaX100 = cmd.substring(6).toInt();
-    salvarConfig();
-  } else if (cmd == "TARE") {
-    scale.tare();
-    emaValor = 0;
-  }
+  if      (cmd.startsWith("MAX:"))   { config.forcaMax  = cmd.substring(4).toInt();  salvarConfig(); }
+  else if (cmd.startsWith("DEAD:"))  { config.deadzone  = cmd.substring(5).toInt();  salvarConfig(); }
+  else if (cmd.startsWith("ALPHA:")) { config.alphaX100 = cmd.substring(6).toInt();  salvarConfig(); }
+  else if (cmd == "TARE")            { scale.tare(); emaValor = 0; }
 }
 
 void setup() {
@@ -73,7 +66,7 @@ void setup() {
   Joystick.begin();
 
   scale.begin(DT_PIN, SCK_PIN);
-  delay(2000);
+  delay(500);
   scale.tare();
   scale.set_scale(54.8);
 }
@@ -91,7 +84,9 @@ void loop() {
   }
 
   if (scale.is_ready()) {
-    float alpha  = config.alphaX100 / 100.0f;
+    contadorHz++;
+
+    float alpha   = config.alphaX100 / 100.0f;
     float leitura = scale.get_units(1);
     emaValor = (alpha * leitura) + ((1.0f - alpha) * emaValor);
 
@@ -106,12 +101,14 @@ void loop() {
     }
 
     unsigned long agora = millis();
-    if (agora - ultimoEnvio >= 50) {
-      Serial.print("F:");  Serial.print((int)emaValor);
-      Serial.print(",A:"); Serial.print(valor);
-      Serial.print(",MAX:"); Serial.print(config.forcaMax);
-      Serial.print(",DEAD:"); Serial.print(config.deadzone);
-      Serial.print(",ALPHA:"); Serial.println(config.alphaX100);
+    if (agora - ultimoEnvio >= 1000) {
+      Serial.print("F:");      Serial.print((int)emaValor);
+      Serial.print(",A:");     Serial.print(valor);
+      Serial.print(",MAX:");   Serial.print(config.forcaMax);
+      Serial.print(",DEAD:");  Serial.print(config.deadzone);
+      Serial.print(",ALPHA:"); Serial.print(config.alphaX100);
+      Serial.print(",HZ:");    Serial.println(contadorHz);
+      contadorHz  = 0;
       ultimoEnvio = agora;
     }
   }
