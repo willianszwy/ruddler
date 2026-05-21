@@ -21,12 +21,10 @@ Config config = { EEPROM_MAGIC, 15000, 150, 20 };
 
 HX711_ADC scale(DT_PIN, SCK_PIN);
 
-// autoSendState = false — controlamos quando enviar o pacote USB
 Joystick_ Joystick(JOYSTICK_DEFAULT_REPORT_ID,
   JOYSTICK_TYPE_JOYSTICK, 0, 0,
   true, false, false, false, false, false,
-  false, false, false, false, false,
-  JOYSTICK_DEFAULT_HATSWITCH_COUNT, false);
+  false, false, false, false, false);
 
 float         emaValor      = 0;
 unsigned long ultimoEnvio   = 0;
@@ -111,7 +109,6 @@ void loop() {
 
     int valor = map(f, -config.forcaMax, config.forcaMax, -32767, 32767);
     Joystick.setXAxis(valor);
-    Joystick.sendState();
     ultimoJoystick = agora;
   }
 
