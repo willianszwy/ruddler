@@ -83,7 +83,7 @@ Connect a momentary button between **Pin 10** and **GND**.
 
 Install via Arduino Library Manager:
 
-- [HX711 by Bogdan Necula](https://github.com/bogde/HX711)
+- [HX711_ADC by Olav Kallhovd](https://github.com/olkal/HX711_ADC)
 - [Joystick by Matthew Heironimus](https://github.com/MHeironimus/ArduinoJoystickLibrary)
 
 ### Setup
@@ -104,9 +104,36 @@ Install via Arduino Library Manager:
 
 ## Dashboard
 
-Access the live dashboard at **[willianszwy.github.io/ruddler](https://willianszwy.github.io/ruddler)**
+**[willianszwy.github.io/ruddler](https://willianszwy.github.io/ruddler)**
 
-> Requires Chrome or Edge (Web Serial API)
+> Requires Chrome or Edge (Web Serial API). No installation needed — runs entirely in the browser.
+
+```
+┌─────────────────────────────────────────────┐
+│  Ruddler                                    │
+│  Dashboard de configuração e monitoramento  │
+├─────────────────────────────────────────────┤
+│  [ Connect to Arduino ]                     │
+├─────────────────────────────────────────────┤
+│  Rudder Position                            │
+│  ←──────────────●──────────────→           │
+│    Left        Center        Right          │
+├──────────┬──────────┬──────────┬────────────┤
+│ Force(g) │   Axis   │    %     │  Rate(Hz)  │
+│   1240   │  -16382  │  -50%    │   80 Hz    │
+├─────────────────────────────────────────────┤
+│  History  ╭─────────────────────────────╮  │
+│           │    ∿∿∿∿∿∿∿∿∿∿∿∿∿∿∿         │  │
+│           ╰─────────────────────────────╯  │
+├─────────────────────────────────────────────┤
+│  Settings                                   │
+│  Force Max  ────────────●──  15000 g        │
+│  Dead Zone  ──●─────────── 150 g            │
+│  EMA Alpha  ─────●──────── 0.20             │
+├─────────────────────────────────────────────┤
+│  [ Zero (Tare) ]     [ Reset Config ]       │
+└─────────────────────────────────────────────┘
+```
 
 ### Usage
 
@@ -122,6 +149,8 @@ Access the live dashboard at **[willianszwy.github.io/ruddler](https://williansz
 | Force Max | 15000 g | Force required to reach 100% axis deflection |
 | Dead Zone | 150 g | Center dead zone to prevent drift |
 | EMA Alpha | 0.20 | Smoothing factor (0.1 = smooth, 0.5 = responsive) |
+
+> Settings are stored in EEPROM — the Arduino loads them automatically on every boot, no dashboard connection required.
 
 ---
 
